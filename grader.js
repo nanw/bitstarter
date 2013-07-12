@@ -26,6 +26,7 @@ var program = require('commander');
 var cheerio = require('cheerio');
 var HTMLFILE_DEFAULT = "index.html";
 var CHECKSFILE_DEFAULT = "checks.json";
+var rest = require('restler')
 
 var assertFileExists = function(infile) {
     var instr = infile.toString();
@@ -60,16 +61,33 @@ var checkHtmlFile = function(htmlfile, checksfile) {
 
 var clone = function(fn) {
     // Workaround for commander.js issue.
+
     // http://stackoverflow.com/a/6772648
     return fn.bind({});
 };
 
+var sys = require('util');
+var checkURL = function(url, checksfile) {
+    // Download the url into local disk
+    var tmphtmlfile = 'file.txt'
+    rest.get(url).on('complete', function(result) {
+	fs.writeFile(__dirname + '/' + tmphtmlfile, result, function(err) {
+	   if (err) throw err;
+        });
+    });
+    var checkresult = checkHtmlFile(tmphtmlfile, checksfile);
+    return checkresult
+};
 if(require.main == module) {
     program
         .option('-c, --checks <check_file>', 'Path to checks.json', clone(assertFileExists), CHECKSFILE_DEFAULT)
         .option('-f, --file <html_file>', 'Path to index.html', clone(assertFileExists), HTMLFILE_DEFAULT)
+	.option('-u, --url <url_add>', 'URL address to check')
         .parse(process.argv);
-    var checkJson = checkHtmlFile(program.file, program.checks);
+    if (program.url)
+        { var checkJson = checkURL(program.url, program.checks); }
+    else 
+	{ var checkJson = checkHtmlFile(program.file, program.checks); }
     // serialize JSON
     var outJson = JSON.stringify(checkJson, null, 4);
     console.log(outJson);
